@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="App para interpretação de espirometria baseado no fluxograma SBPT 2024">
+<meta name="theme-color" content="#1e4d8c">
+<title>Interpretação de Espirometria - SBPT 2024</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --primary: #1e4d8c;
+    --primary-dark: #143866;
+    --accent: #c0392b;
+    --accent-soft: #fdecea;
+    --bg: #f4f7fb;
+    --surface: #ffffff;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --border: #d8e1ec;
+    --success: #1f8a4c;
+    --warning: #d97706;
+    --info: #0e7490;
+    --shadow: 0 6px 24px rgba(20, 56, 102, 0.08);
+  }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    padding: 20px;
+  }
+  .app {
+    max-width: 980px;
+    margin: 0 auto;
+    background: var(--surface);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    padding: 24px 32px;
+  }
+  header h1 {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  header .subtitle {
+    margin-top: 6px;
+    font-size: 13px;
+    opacity: 0.85;
+  }
+  .progress-bar {
+    height: 4px;
+    background: rgba(255,255,255,0.18);
+    margin-top: 16px;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: #ffffff;
+    width: 0%;
+    transition: width 0.4s ease;
+  }
+  main { padding: 28px 32px 24px; }
+  .step {
+    display: none;
+    animation: fadeIn 0.25s ease;
+  }
+  .step.active { display: block; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .step-tag {
+    background: var(--primary);
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 999px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .step-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--primary-dark);
+  }
+  .step-desc {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .field label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .field .hint {
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .field input, .field select {
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+    background: #fafbfd;
+    transition: border-color 0.15s, background 0.15s;
+    font-family: inherit;
+  }
+  .field input:focus, .field select:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: white;
+  }
+  .options {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+  .option {
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: white;
+    text-align: left;
+    font-family: inherit;
+    font-size: 15px;
+    color: var(--text);
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .option:hover {
+    border-color: var(--primary);
+    background: #f0f5fc;
+  }
+  .option .opt-icon {
+    flex-shrink: 0;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: #e5edf7;
+    color: var(--primary);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 13px;
+  }
+  .option .opt-body { flex: 1; }
+  .option .opt-title { font-weight: 600; margin-bottom: 2px; }
+  .option .opt-detail { font-size: 13px; color: var(--muted); }
+  .navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+  }
+  button.btn {
+    border: none;
+    padding: 10px 22px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  button.btn-primary {
+    background: var(--primary);
+    color: white;
+  }
+  button.btn-primary:hover { background: var(--primary-dark); }
+  button.btn-primary:disabled {
+    background: #b9c5d6;
+    cursor: not-allowed;
+  }
+  button.btn-ghost {
+    background: transparent;
+    color: var(--muted);
+  }
+  button.btn-ghost:hover { color: var(--primary); }
+  .panel {
+    background: #f0f5fc;
+    border-left: 4px solid var(--primary);
+    padding: 14px 16px;
+    border-radius: 6px;
+    margin-bottom: 18px;
+    font-size: 14px;
+  }
+  .panel-warn {
+    background: #fff7ed;
+    border-left-color: var(--warning);
+  }
+  .panel-info {
+    background: #ecfeff;
+    border-left-color: var(--info);
+  }
+  .panel strong { color: var(--primary-dark); }
+  .calculated {
+    background: #ecfeff;
+    border: 1px solid #a5e9f5;
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: var(--info);
+  }
+  .calculated strong { font-size: 15px; }
+  .result-card {
+    background: white;
+    border: 2px solid var(--primary);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 18px;
+  }
+  .result-card.severity-grave { border-color: #b91c1c; background: #fef2f2; }
+  .result-card.severity-moderado { border-color: #d97706; background: #fffbeb; }
+  .result-card.severity-leve { border-color: #ca8a04; background: #fefce8; }
+  .result-card.normal { border-color: var(--success); background: #f0fdf4; }
+  .result-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .result-diagnosis {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--primary-dark);
+    margin-bottom: 8px;
+  }
+  .result-card.severity-grave .result-diagnosis { color: #991b1b; }
+  .result-card.severity-moderado .result-diagnosis { color: #b45309; }
+  .result-card.severity-leve .result-diagnosis { color: #a16207; }
+  .result-card.normal .result-diagnosis { color: #166534; }
+  .result-detail {
+    font-size: 15px;
+    color: var(--text);
+    margin-bottom: 12px;
+  }
+  .severity-pill {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 6px;
+  }
+  .severity-grave .severity-pill { background: #b91c1c; color: white; }
+  .severity-moderado .severity-pill { background: #d97706; color: white; }
+  .severity-leve .severity-pill { background: #ca8a04; color: white; }
+  .recommendation {
+    background: white;
+    border: 1px solid var(--border);
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 14px;
+  }
+  .recommendation h4 {
+    color: var(--primary-dark);
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+  .recommendation ul {
+    margin-left: 18px;
+    font-size: 14px;
+  }
+  .recommendation li { margin: 4px 0; }
+  .summary {
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 14px;
+    font-size: 13px;
+  }
+  .summary h4 {
+    color: var(--primary-dark);
+    font-size: 13px;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-row span:first-child { color: var(--muted); }
+  .summary-row span:last-child { font-weight: 600; }
+  .path-trail {
+    background: white;
+    border: 1px solid var(--border);
+    padding: 14px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 14px;
+  }
+  .path-trail h4 {
+    color: var(--primary-dark);
+    font-size: 13px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .path-trail .step-item {
+    padding: 6px 0;
+    border-bottom: 1px dashed var(--border);
+    color: var(--text);
+  }
+  .path-trail .step-item:last-child { border-bottom: none; }
+  .path-trail .arrow { color: var(--primary); margin-right: 8px; font-weight: 700; }
+  .actions-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+  }
+  footer {
+    text-align: center;
+    padding: 16px 32px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 12px;
+  }
+  footer a { color: var(--primary); text-decoration: none; }
+  @media print {
+    body { background: white; padding: 0; }
+    .app { box-shadow: none; border-radius: 0; }
+    header { background: var(--primary) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .navigation, .actions-row, footer { display: none !important; }
+    .step { display: block !important; }
+  }
+  @media (max-width: 600px) {
+    body { padding: 8px; }
+    main { padding: 20px 16px; }
+    header { padding: 18px 20px; }
+    header h1 { font-size: 18px; }
+    .step-title { font-size: 17px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Interpretação de Espirometria — SBPT 2024</h1>
+    <div class="subtitle">Fluxograma assistido por etapas para diagnóstico de distúrbios ventilatórios</div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  </header>
+
+  <main id="mainContent"></main>
+
+  <footer>
+    Baseado no fluxograma de Luiz Claudio Pereira Fernandes, MD — Especialista em Alergia e Imunologia Pediátrica (SBP/ASBAI/AMB)
+    · Não substitui avaliação clínica especializada
+  </footer>
+</div>
+
+<script>
+const state = {
+  patient: { name: '', age: null, sex: '' },
+  values: {
+    vef1_pct: null, cvf_pct: null, ratio_abs: null, ratio_pct: null,
+    fef2575_pct: null, fef2575_cvf_pct: null, lin: null,
+  },
+  postBD: { vef1_change_pct: null, cvf_change_pct: null, cvf_post_pct: null },
+  clinical: { hasSymptoms: null, symptoms: [] },
+  flags: { ratioReduced: null, cvfReduced: null, branch: null },
+  history: [],
+  currentNodeId: 'start'
+};
+
+const NODES = {
+  start: {
+    title: 'Dados do paciente e valores espirométricos',
+    description: 'Insira as informações iniciais. O cálculo da relação VEF1/CVF será automático com base na idade.',
+    render: () => `
+      <div class="panel panel-info">
+        <strong>Critérios SBPT 2024 para VEF1/CVF reduzido:</strong>
+        VEF1/CVF &lt; LIN <em>ou</em> &lt; 90% do previsto <em>ou</em>
+        ≤25 anos &lt; 0,80 · ≤45 anos &lt; 0,75 · &gt;45 anos &lt; 0,70
+      </div>
+      <h4 style="color:var(--primary-dark);font-size:14px;margin-bottom:10px;">Dados do paciente</h4>
+      <div class="form-grid">
+        <div class="field">
+          <label for="pname">Nome (opcional)</label>
+          <input type="text" id="pname" placeholder="Ex: João Silva">
+        </div>
+        <div class="field">
+          <label for="page">Idade (anos) <span style="color:var(--accent)">*</span></label>
+          <input type="number" id="page" min="1" max="120" placeholder="Ex: 35">
+        </div>
+        <div class="field">
+          <label for="psex">Sexo (opcional)</label>
+          <select id="psex">
+            <option value="">—</option>
+            <option value="M">Masculino</option>
+            <option value="F">Feminino</option>
+          </select>
+        </div>
+      </div>
+      <h4 style="color:var(--primary-dark);font-size:14px;margin:20px 0 10px;">Valores espirométricos (pré-broncodilatador)</h4>
+      <div class="form-grid">
+        <div class="field">
+          <label for="vvef1">VEF1 (% do previsto) <span style="color:var(--accent)">*</span></label>
+          <input type="number" id="vvef1" step="0.1" min="1" max="200" placeholder="Ex: 85">
+        </div>
+        <div class="field">
+          <label for="vcvf">CVF (% do previsto) <span style="color:var(--accent)">*</span></label>
+          <input type="number" id="vcvf" step="0.1" min="1" max="200" placeholder="Ex: 92">
+        </div>
+        <div class="field">
+          <label for="vratio">VEF1/CVF (absoluto) <span style="color:var(--accent)">*</span></label>
+          <input type="number" id="vratio" step="0.01" min="0.1" max="1.5" placeholder="Ex: 0.78">
+          <div class="hint">Valor entre 0 e 1, ex: 0,75</div>
+        </div>
+        <div class="field">
+          <label for="vratiop">VEF1/CVF (% do previsto)</label>
+          <input type="number" id="vratiop" step="0.1" min="1" max="200" placeholder="Ex: 95">
+          <div class="hint">Opcional, mas recomendado</div>
+        </div>
+        <div class="field">
+          <label for="vfef">FEF 25-75% (% do previsto)</label>
+          <input type="number" id="vfef" step="0.1" min="1" max="300" placeholder="Ex: 65">
+        </div>
+        <div class="field">
+          <label for="vfefcvf">FEF 25-75% / CVF (%)</label>
+          <input type="number" id="vfefcvf" step="0.1" min="1" max="500" placeholder="Ex: 120">
+        </div>
+        <div class="field">
+          <label for="vlin">LIN VEF1/CVF (opcional)</label>
+          <input type="number" id="vlin" step="0.01" min="0" max="1" placeholder="Ex: 0.70">
+        </div>
+      </div>
+    `,
+    validate: () => {
+      const age = parseFloat(document.getElementById('page').value);
+      const vef1 = parseFloat(document.getElementById('vvef1').value);
+      const cvf = parseFloat(document.getElementById('vcvf').value);
+      const ratio = parseFloat(document.getElementById('vratio').value);
+      if (isNaN(age) || age < 1 || age > 120) return 'Informe a idade do paciente.';
+      if (isNaN(vef1)) return 'Informe o VEF1 (% do previsto).';
+      if (isNaN(cvf)) return 'Informe a CVF (% do previsto).';
+      if (isNaN(ratio)) return 'Informe a relação VEF1/CVF absoluta.';
+      return null;
+    },
+    commit: () => {
+      state.patient.name = document.getElementById('pname').value;
+      state.patient.age = parseFloat(document.getElementById('page').value);
+      state.patient.sex = document.getElementById('psex').value;
+      state.values.vef1_pct = parseFloat(document.getElementById('vvef1').value);
+      state.values.cvf_pct = parseFloat(document.getElementById('vcvf').value);
+      state.values.ratio_abs = parseFloat(document.getElementById('vratio').value);
+      const rp = parseFloat(document.getElementById('vratiop').value);
+      state.values.ratio_pct = isNaN(rp) ? null : rp;
+      const fef = parseFloat(document.getElementById('vfef').value);
+      state.values.fef2575_pct = isNaN(fef) ? null : fef;
+      const fefc = parseFloat(document.getElementById('vfefcvf').value);
+      state.values.fef2575_cvf_pct = isNaN(fefc) ? null : fefc;
+      const lin = parseFloat(document.getElementById('vlin').value);
+      state.values.lin = isNaN(lin) ? null : lin;
+      const age = state.patient.age;
+      let cutoff;
+      if (age <= 25) cutoff = 0.80;
+      else if (age <= 45) cutoff = 0.75;
+      else cutoff = 0.70;
+      const ratio = state.values.ratio_abs;
+      const ratioPctTest = state.values.ratio_pct !== null && state.values.ratio_pct < 90;
+      const ratioLinTest = state.values.lin !== null && ratio < state.values.lin;
+      const ratioAbsTest = ratio < cutoff;
+      state.flags.ratioReduced = ratioAbsTest || ratioPctTest || ratioLinTest;
+      state.flags.branch = state.flags.ratioReduced ? 'sim' : 'nao';
+      addToHistory(`Idade ${age} anos · ponto de corte VEF1/CVF: ${cutoff.toFixed(2)}`);
+      addToHistory(`VEF1/CVF = ${ratio.toFixed(2)} → ${state.flags.ratioReduced ? 'REDUZIDO' : 'NORMAL'}`);
+    },
+    next: () => 'ratio_result'
+  },
+  ratio_result: {
+    title: state => state.flags.ratioReduced ? 'VEF1/CVF REDUZIDO → ramo SIM' : 'VEF1/CVF NORMAL → ramo NÃO',
+    description: 'Resultado calculado automaticamente. Avance para avaliar a CVF.',
+    render: state => {
+      const age = state.patient.age;
+      let cutoff;
+      if (age <= 25) cutoff = 0.80;
+      else if (age <= 45) cutoff = 0.75;
+      else cutoff = 0.70;
+      const colorClass = state.flags.ratioReduced ? 'panel-warn' : 'panel';
+      return `
+        <div class="calculated">
+          <div>VEF1/CVF informado: <strong>${state.values.ratio_abs.toFixed(2)}</strong></div>
+          <div>Ponto de corte para ${age} anos: <strong>&lt; ${cutoff.toFixed(2)}</strong></div>
+          ${state.values.ratio_pct !== null ? `<div>VEF1/CVF (% previsto): <strong>${state.values.ratio_pct}%</strong> ${state.values.ratio_pct < 90 ? '(reduzido — &lt;90%)' : '(normal)'}</div>` : ''}
+          ${state.values.lin !== null ? `<div>LIN: <strong>${state.values.lin.toFixed(2)}</strong> ${state.values.ratio_abs < state.values.lin ? '(VEF1/CVF &lt; LIN)' : ''}</div>` : ''}
+        </div>
+        <div class="panel ${colorClass}">
+          <strong>Conclusão desta etapa:</strong>
+          ${state.flags.ratioReduced
+            ? 'Relação VEF1/CVF está <strong>reduzida</strong> — segue o ramo <strong>SIM</strong> do fluxograma.'
+            : 'Relação VEF1/CVF está <strong>normal</strong> — segue o ramo <strong>NÃO</strong> do fluxograma.'}
+        </div>
+        <p style="font-size:14px;color:var(--muted);">A próxima etapa avalia a CVF para determinar o padrão ventilatório.</p>
+      `;
+    },
+    next: () => 'cvf_check'
+  },
+  cvf_check: {
+    title: 'A CVF está reduzida?',
+    description: 'Use o valor de CVF (% do previsto) já informado.',
+    render: state => `
+      <div class="calculated">
+        CVF informada: <strong>${state.values.cvf_pct}% do previsto</strong>
+      </div>
+      <div class="options">
+        <button class="option" data-choice="normal">
+          <div class="opt-icon">N</div>
+          <div class="opt-body">
+            <div class="opt-title">CVF normal (≥ 80%)</div>
+            <div class="opt-detail">Sem evidência de redução de capacidade vital forçada.</div>
+          </div>
+        </button>
+        <button class="option" data-choice="reduced">
+          <div class="opt-icon">↓</div>
+          <div class="opt-body">
+            <div class="opt-title">CVF reduzida (&lt; 80%)</div>
+            <div class="opt-detail">Sugere componente restritivo ou aprisionamento de ar.</div>
+          </div>
+        </button>
+      </div>
+      <p style="font-size:13px;color:var(--muted);text-align:center;">
+        Sugestão automática: <strong>${state.values.cvf_pct >= 80 ? 'CVF normal' : 'CVF reduzida'}</strong>
+        (clique para confirmar)
+      </p>
+    `,
+    type: 'choice',
+    onChoice: (choice) => {
+      state.flags.cvfReduced = (choice === 'reduced');
+      addToHistory(`CVF = ${state.values.cvf_pct}% → ${state.flags.cvfReduced ? 'REDUZIDA (<80%)' : 'NORMAL (≥80%)'}`);
+      if (state.flags.branch === 'nao' && !state.flags.cvfReduced) return 'nao_cvfn_check';
+      if (state.flags.branch === 'nao' &&  state.flags.cvfReduced) return 'nao_cvfr_severity';
+      if (state.flags.branch === 'sim' && !state.flags.cvfReduced) return 'sim_cvfn_severity';
+      if (state.flags.branch === 'sim' &&  state.flags.cvfReduced) return 'sim_cvfr_difference';
+    }
+  },
+  nao_cvfn_check: {
+    title: 'Avaliação adicional — VEF1/CVF normal e CVF normal',
+    description: 'Verifique os parâmetros para diferenciar entre Espirometria Normal e DVO Leve.',
+    render: state => `
+      <div class="calculated">
+        <strong>FEF 25-75%:</strong> ${state.values.fef2575_pct !== null ? state.values.fef2575_pct + '% do previsto' : '<em>não informado</em>'}
+      </div>
+      <div class="options">
+        <button class="option" data-choice="all_normal">
+          <div class="opt-icon">✓</div>
+          <div class="opt-body">
+            <div class="opt-title">Todos os parâmetros normais</div>
+            <div class="opt-detail">VEF1, CVF, VEF1/CVF, FEF 25-75% e demais variáveis dentro da normalidade.</div>
+          </div>
+        </button>
+        <button class="option" data-choice="fef_low">
+          <div class="opt-icon">↓</div>
+          <div class="opt-body">
+            <div class="opt-title">FEF 25-75% &lt; 60% do previsto</div>
+            <div class="opt-detail">Reduzido isoladamente, com demais valores normais.</div>
+          </div>
+        </button>
+        <button class="option" data-choice="bd_response">
+          <div class="opt-icon">+</div>
+          <div class="opt-body">
+            <div class="opt-title">Resposta significativa ao broncodilatador</div>
+            <div class="opt-detail">VEF1 ou CVF ≥10% do predito + variação significativa do fluxo e/ou volume após BD (SBPT-2024).</div>
+          </div>
+        </button>
+      </div>
+    `,
+    type: 'choice',
+    onChoice: (choice) => {
+      if (choice === 'all_normal') { addToHistory('Todos os parâmetros normais'); return 'result_normal'; }
+      if (choice === 'fef_low') { addToHistory('FEF 25-75% < 60% do previsto'); return 'nao_fef_clinic'; }
+      if (choice === 'bd_response') { addToHistory('VEF1 ou CVF ≥10% pós-BD com variação significativa'); return 'nao_bd_clinic'; }
+    }
+  },
+  nao_fef_clinic: {
+    title: 'Correlação clínica — FEF 25-75% reduzido',
+    description: 'Sintomas como asma, tosse, chiado, dispneia ou tabagismo?',
+    render: () => `
+      <div class="options">
+        <button class="option" data-choice="positive">
+          <div class="opt-icon">+</div>
+          <div class="opt-body"><div class="opt-title">Correlação clínica POSITIVA</div><div class="opt-detail">Asma, tosse, chiado, dispneia ou tabagismo presentes.</div></div>
+        </button>
+        <button class="option" data-choice="negative">
+          <div class="opt-icon">−</div>
+          <div class="opt-body"><div class="opt-title">Correlação clínica NEGATIVA</div><div class="opt-detail">Sem sintomas obstrutivos relevantes.</div></div>
+        </button>
+      </div>
+    `,
+    type: 'choice',
+    onChoice: (choice) => {
+      if (choice === 'positive') { addToHistory('Correlação clínica positiva (sintomas obstrutivos / tabagismo)'); return 'result_dvo_leve_bd'; }
+      else { addToHistory('Correlação clínica negativa'); return 'nao_fef_bd'; }
+    }
+  },
+  nao_fef_bd: {
+    title: 'Variação após broncodilatador',
+    description: 'Houve variação positiva significativa no VEF1/CVF/FEF após o BD?',
+    render: () => `
+      <div class="options">
+        <button class="option" data-choice="positive">
+          <div class="opt-icon">+</div>
+          <div class="opt-body"><div class="opt-title">Resposta POSITIVA ao BD</div><div class="opt-detail">Variação significativa do fluxo e/ou volume.</div></div>
+        </button>
+        <button class="option" data-choice="negative">
+          <div class="opt-icon">−</div>
+          <div class="opt-body"><div class="opt-title">Resposta NEGATIVA ao BD</div><div class="opt-detail">Sem variação significativa pós-BD.</div></div>
+        </button>
+      </div>
+    `,
+    type: 'choice',
+    onChoice: (choice) => {
+      if (choice === 'positive') { addToHistory('Resposta positiva ao broncodilatador'); return 'result_dvo_leve'; }
+      else { addToHistory('Resposta negativa ao broncodilatador'); return 'result_normal'; }
+    }
+  },
+  nao_bd_clinic: {
+    title: 'Correlação clínica — resposta significativa ao BD',
+    description: 'Sintomas como asma, tosse, chiado, dispneia ou tabagismo?',
+    render: () => `
+      <div class="options">
+        <button class="option" data-choice="positive">
+          <div class="opt-icon">+</div>
+          <div class="opt-body"><div class="opt-title">Correlação clínica POSITIVA</div><div class="opt-detail">Sintomas obstrutivos / tabagismo presentes.</div></div>
+        </button>
+        <button class="option" data-choice="negative">
+          <div class="opt-icon">−</div>
+          <div class="opt-body"><div class="opt-title">Correlação clínica NEGATIVA</div><div class="opt-detail">Sem sintomas relevantes.</div></div>
+        </button>
+      </div>
+    `,
+    type: 'choice',
+    onChoice: (choice) => {
+      if (choice === 'positive') { addToHistory('Correlação clínica positiva'); return 'result_dvo_leve'; }
+      else { addToHistory('Correlação clínica negativa'); return 'result_normal_bronco'; }
+    }
+  },
+  nao_cvfr_severity: {
+    title: 'Distúrbio Ventilatório Restritivo (DVR) — Gravidade',
+    description: 'A gravidade do DVR é classificada pelo VEF1 (% do previsto).',
+    render: state => {
+      const v = state.values.vef1_pct;
+      let auto;
+      if (v <= 50) auto = 'Grave';
+      else if (v <= 65) auto = 'Moderado';
+      else auto = 'Leve';
+      return `
+        <div class="calculated">
+          VEF1 informado: <strong>${v}% do previsto</strong> · Sugestão automática: <strong>${auto}</strong>
+        </div>
+        <div class="options">
+          <button class="option" data-choice="grave"><div class="opt-icon">G</div><div class="opt-body"><div class="opt-title">Grave</div><div class="opt-detail">VEF1 ≤ 50%</div></div></button>
+          <button class="option" data-choice="moderado"><div class="opt-icon">M</div><div class="opt-body"><div class="opt-title">Moderado</div><div class="opt-detail">VEF1 51 – 65%</div></div></button>
+          <button class="option" data-choice="leve"><div class="opt-icon">L</div><div class="opt-body"><div class="opt-title">Leve</div><div class="opt-detail">VEF1 &gt; 65%</div></div></button>
+        </div>
+      `;
+    },
+    type: 'choice',
+    onChoice: (choice) => {
+      state.flags.dvrSeverity = choice;
+      addToHistory(`DVR — gravidade: ${capitalize(choice)} (VEF1 ${state.values.vef1_pct}%)`);
+      return 'nao_cvfr_fef_check';
+    }
+  },
+  nao_cvfr_fef_check: {
+    title: 'Avaliação da relação FEF 25-75% / CVF (%)',
+    description: 'Para diferenciar DVR puro, DVR provável, DV inespecífico ou DV obstrutivo.',
+    render: state => `
+      <div class="calculated">
+        <strong>FEF 25-75% / CVF:</strong> ${state.values.fef2575_cvf_pct !== null ? state.values.fef2575_cvf_pct + '%' : '<em>não informado</em>'}<br>
+        <strong>VEF1/CVF (% previsto):</strong> ${state.values.ratio_pct !== null ? state.values.ratio_pct + '%' : '<em>não informado</em>'}
+      </div>
+      <div class="options">
+        <button class="option" data-choice="supranormal"><div class="opt-icon">↑</div><div class="opt-body"><div class="opt-title">Fluxos supranormais</div><div class="opt-detail">FEF25-75%/CVF% &gt; 150% <em>ou</em> VEF1/CVF% &gt; 110% do previsto.</div></div></button>
+        <button class="option" data-choice="ratio_high_clinic"><div class="opt-icon">≥</div><div class="opt-body"><div class="opt-title">FEF25-75%/CVF% &gt; 150% ou clínica positiva</div><div class="opt-detail">Sugere DVR provável.</div></div></button>
+        <button class="option" data-choice="ratio_low"><div class="opt-icon">&lt;</div><div class="opt-body"><div class="opt-title">FEF25-75%/CVF% &lt; 150%</div><div class="opt-detail">Avaliar resposta ao BD para classificar DV inespecífico ou obstrutivo.</div></div></button>
+      </div>
+    `,
+    type: 'choice',
+    onChoice: (choice) => {
+      if (choice === 'supranormal') { addToHistory('Fluxos supranormais (FEF25-75%/CVF >150% ou VEF1/CVF% >110%)'); return 'result_dvr_supranormal'; }
+      if (choice === 'ratio_high_clinic') { addToHistory('FEF25-75%/CVF% >150% ou clínica positiva → DVR provável'); return 'result_dvr_provavel'; }
+      if (choice === 'ratio_low') { addToHistory('FEF25-75%/CVF% <150% — segue para avaliação pós-BD'); return 'nao_cvfr_postbd'; }
+    }
+  },
+  nao_cvfr_postbd: {
+    title: 'Comportamento da CVF após broncodilatador',
+    description: 'A CVF normalizou após o BD?',
+    render: () => `
+      <div class="field" style="margin-bottom:18px;">
+        <label for="cvfpost">CVF pós-BD (% do previsto) — opcional</label>
+        <input type="number" id="cvfpost" step="0.1" min="1" max="200" placeholder="Ex: 78">
+      </div>
+      <div class="options">
+        <button class="option" data-choice="reduced_post"><div class="opt-icon">↓</div><div class="opt-body"><div class="opt-title">CVF permanece reduzida pós-BD</div><div class="opt-detail">CVF &lt; 80% após BD → DV Inespecífico.</div></div></button>
+        <button class="option" data-choice="normal_post"><div class="opt-icon">↑</div><div class="opt-body"><div class="opt-title">CVF normaliza pós-BD</div><div class="opt-detail">CVF ≥ 80% após BD → DV Obstrutivo.</div></div></button>
+      </div>
+    `,
+    type: 'choice',
+    onChoice: (choice) => {
+      const postCvf = parseFloat(document.getElementById('cvfpost').value);
+      if (!isNaN(postCvf)) state.postBD.cvf_post_pct = postCvf;
+      if (choice === 'reduced_post') { addToHistory(`CVF pós-BD reduzida${state.postBD.cvf_post_pct ? ' ('+state.postBD.cvf_post_pct+'%)' : ''}`); return 'result_dv_inespecifico'; }
+      else { addToHistory(`CVF normaliza pós-BD${state.postBD.cvf_post_pct ? ' ('+state.postBD.cvf_post_pct+'%)' : ''}`); return 'result_dv_obstrutivo'; }
+    }
+  },
+  sim_cvfn_severity: {
+    title: 'Distúrbio Ventilatório Obstrutivo (DVO) — Gravidade',
+    description: 'Classificação pela VEF1 (% do previsto).',
+    render: state => {
+      const v = state.values.vef1_pct;
+      let auto;
+      if (v <= 40) auto = 'Grave';
+      else if (v <= 59) auto = 'Moderado';
+      else auto = 'Leve';
+      return `
+        <div class="calculated">
+          VEF1 informado: <strong>${v}% do previsto</strong> · Sugestão automática: <strong>${auto}</strong>
+        </div>
+        <div class="options">
+          <button class="option" data-choice="grave"><div class="opt-icon">G</div><div class="opt-body"><div class="opt-title">Grave</div><div class="opt-detail">VEF1 ≤ 40%</div></div></button>
+          <button class="option" data-choice="moderado"><div class="opt-icon">M</div><div class="opt-body"><div class="opt-title">Moderado</div><div class="opt-detail">VEF1 41 – 59%</div></div></button>
+          <button class="option" data-choice="leve"><div class="opt-icon">L</div><div class="opt-body"><div class="opt-title">Leve</div><div class="opt-detail">VEF1 ≥ 60%</div></div></button>
+        </div>
+      `;
+    },
+    type: 'choice',
+    onChoice: (choice) => {
+      state.flags.dvoSeverity = choice;
+      addToHistory(`DVO — gravidade: ${capitalize(choice)} (VEF1 ${state.values.vef1_pct}%)`);
+      return 'sim_cvfn_bd';
+    }
+  },
+  sim_cvfn_bd: {
+    title: 'Prova Broncodilatadora (BD) — registro',
+    description: 'Informe a variação pós-BD para avaliar resposta. Aplique os critérios SBPT-2024 ou ATS/ERS-2022.',
+    render: () => `
+      <div class="form-grid">
+        <div class="field">
+          <label for="bdvef1">Variação VEF1 pós-BD (% do predito)</label>
+          <input type="number" id="bdvef1" step="0.1" min="0" max="200" placeholder="Ex: 12">
+        </div>
+        <div class="field">
+          <label for="bdcvf">Variação CVF pós-BD (% do predito)</label>
+          <input type="number" id="bdcvf" step="0.1" min="0" max="200" placeholder="Ex: 8">
+        </div>
+      </div>
+      <div class="panel panel-info" style="margin-top:8px;">
+        <strong>Critérios:</strong><br>
+        <strong>SBPT-2024:</strong> VEF1 ou CVF ≥ <strong>7%</strong> do predito (em teste alterado pré-BD) + variação significativa do fluxo e/ou volume após BD.<br>
+        <strong>ATS/ERS-2022:</strong> VEF1 ou CVF ≥ <strong>10%</strong> do predito (teste alterado ou normal pré-BD) + variação significativa do fluxo e/ou volume após BD.
+      </div>
+      <div class="options">
+        <button class="option" data-choice="positive"><div class="opt-icon">+</div><div class="opt-body"><div class="opt-title">Prova BD POSITIVA</div><div class="opt-detail">Critério atendido (SBPT-2024 ou ATS/ERS-2022).</div></div></button>
+        <button class="option" data-choice="negative"><div class="opt-icon">−</div><div class="opt-body"><div class="opt-title">Prova BD NEGATIVA</div><div class="opt-detail">Sem variação significativa após BD.</div></div></button>
+      </div>
+    `,
+    type: 'choice',
+    onChoice: (choice) => {
+      const bdv = parseFloat(document.getElementById('bdvef1').value);
+      const bdc = parseFloat(document.getElementById('bdcvf').value);
+      if (!isNaN(bdv)) state.postBD.vef1_change_pct = bdv;
+      if (!isNaN(bdc)) state.postBD.cvf_change_pct = bdc;
+      state.flags.bdResponse = choice;
+      addToHistory(`Prova BD: ${choice === 'positive' ? 'POSITIVA' : 'NEGATIVA'}` +
+        (state.postBD.vef1_change_pct !== null ? ` (Δ VEF1 ${state.postBD.vef1_change_pct}%)` : '') +
+        (state.postBD.cvf_change_pct !== null ? ` (Δ CVF ${state.postBD.cvf_change_pct}%)` : ''));
+      return 'result_dvo';
+    }
+  },
+  sim_cvfr_difference: {
+    title: 'Cálculo da diferença CVF − VEF1 (%)',
+    description: 'Calcule a diferença em pontos percentuais para diferenciar aprisionamento de ar.',
+    render: state => {
+      const diff = (state.values.cvf_pct - state.values.vef1_pct);
+      return `
+        <div class="calculated">
+          CVF (${state.values.cvf_pct}%) − VEF1 (${state.values.vef1_pct}%) = <strong>${diff.toFixed(1)} pontos percentuais</strong><br>
+          Sugestão automática: <strong>${diff < 25 ? '< 25%' : '≥ 25%'}</strong>
+        </div>
+        <div class="options">
+          <button class="option" data-choice="lt25"><div class="opt-icon">&lt;</div><div class="opt-body"><div class="opt-title">CVF − VEF1 &lt; 25%</div><div class="opt-detail">DVO com redução da CVF — necessária pletismografia para diferenciar aprisionamento de ar (VR>) ou DV combinado/misto (CPT&lt;).</div></div></button>
+          <button class="option" data-choice="ge25"><div class="opt-icon">≥</div><div class="opt-body"><div class="opt-title">CVF − VEF1 ≥ 25%</div><div class="opt-detail">DVO com redução da CVF por aprisionamento de ar (VR&gt;).</div></div></button>
+        </div>
+      `;
+    },
+    type: 'choice',
+    onChoice: (choice) => {
+      const diff = (state.values.cvf_pct - state.values.vef1_pct);
+      addToHistory(`CVF − VEF1 = ${diff.toFixed(1)} pp → ${choice === 'lt25' ? '<25%' : '≥25%'}`);
+      const v = state.values.vef1_pct;
+      let sev;
+      if (v <= 40) sev = 'grave';
+      else if (v <= 59) sev = 'moderado';
+      else sev = 'leve';
+      state.flags.dvoSeverity = sev;
+      addToHistory(`DVO — gravidade: ${capitalize(sev)} (VEF1 ${v}%)`);
+      if (choice === 'lt25') return 'result_dvo_cvfred_pleth';
+      else return 'result_dvo_cvfred_aprisionamento';
+    }
+  },
+  result_normal: {
+    isResult: true, diagnosis: 'Espirometria Normal', severity: 'normal',
+    detail: 'Sem evidência de distúrbio ventilatório. Todos os parâmetros dentro da normalidade.',
+    recommendations: [
+      'Considerar repetição em caso de evolução clínica',
+      'Avaliar outras causas para sintomas persistentes',
+      'Reforçar medidas preventivas (cessação do tabagismo, controle ambiental)'
+    ]
+  },
+  result_normal_bronco: {
+    isResult: true, diagnosis: 'Espirometria Normal com Aumento do Tônus Broncomotor', severity: 'normal',
+    detail: 'Resposta significativa ao BD em paciente assintomático — pode indicar hiperresponsividade brônquica subjacente.',
+    recommendations: [
+      'Acompanhamento clínico — avaliar surgimento de sintomas',
+      'Considerar teste de provocação brônquica se indicação',
+      'Reforçar controle de fatores ambientais e alérgenos'
+    ]
+  },
+  result_dvo_leve: {
+    isResult: true, diagnosis: 'Distúrbio Ventilatório Obstrutivo Leve', severity: 'leve',
+    detail: 'Critérios sugestivos de DVO leve presentes (variação significativa pós-BD ou clínica positiva com FEF reduzido).',
+    recommendations: [
+      'Avaliar resposta ao broncodilatador documentada',
+      'Investigar asma como hipótese principal',
+      'Considerar terapia de manutenção conforme guidelines (GINA, etc.)',
+      'Reavaliação em 4 a 6 semanas'
+    ]
+  },
+  result_dvo_leve_bd: {
+    isResult: true, diagnosis: 'Distúrbio Ventilatório Obstrutivo Leve', severity: 'leve',
+    detail: 'FEF 25-75% reduzido com clínica positiva (asma, tosse, chiado, dispneia ou tabagismo).',
+    recommendations: [
+      '<strong>Realizar prova BD (ver resposta)</strong>',
+      'Avaliar critério SBPT-2024 (VEF1 ou CVF ≥ 7%) ou ATS/ERS-2022 (≥ 10%)',
+      'Considerar tratamento de asma / DPOC conforme contexto',
+      'Reavaliar com nova espirometria após manejo'
+    ]
+  },
+  result_dvo: {
+    isResult: true,
+    getDiagnosis: state => `Distúrbio Ventilatório Obstrutivo (DVO) ${capitalize(state.flags.dvoSeverity)}`,
+    getSeverity: state => state.flags.dvoSeverity,
+    getDetail: state => {
+      const sev = state.flags.dvoSeverity;
+      const bd = state.flags.bdResponse;
+      const cuts = { grave: 'VEF1 ≤ 40%', moderado: 'VEF1 41–59%', leve: 'VEF1 ≥ 60%' };
+      return `Padrão obstrutivo ${sev} (${cuts[sev]} do previsto). Prova BD: <strong>${bd === 'positive' ? 'POSITIVA' : 'NEGATIVA'}</strong>.`;
+    },
+    recommendations: [
+      'Confirmar diagnóstico com correlação clínica',
+      'Avaliar etiologia: asma, DPOC, bronquiectasias, etc.',
+      'Iniciar/ajustar terapia broncodilatadora conforme padrão',
+      'Programar reavaliação espirométrica',
+      'Em casos graves: encaminhamento para pneumologia / oxigenoterapia se indicado'
+    ]
+  },
+  result_dvo_cvfred_pleth: {
+    isResult: true,
+    getDiagnosis: state => `DVO ${capitalize(state.flags.dvoSeverity)} com redução da CVF (necessita pletismografia)`,
+    getSeverity: state => state.flags.dvoSeverity,
+    detail: 'CVF − VEF1 &lt; 25%. Necessário pletismografia para diferenciar entre <strong>aprisionamento de ar (VR>)</strong> e <strong>DV Combinado/Misto (CPT<)</strong>.',
+    recommendations: [
+      '<strong>Solicitar pletismografia (medida de CPT e VR)</strong>',
+      'Se CPT &lt; 80% → DV Combinado/Misto',
+      'Se VR &gt; 120% (ou aumentado) → DVO com aprisionamento',
+      'Avaliar resposta ao BD',
+      'Encaminhar para pneumologia'
+    ]
+  },
+  result_dvo_cvfred_aprisionamento: {
+    isResult: true,
+    getDiagnosis: state => `DVO ${capitalize(state.flags.dvoSeverity)} com redução da CVF por aprisionamento de ar (VR>)`,
+    getSeverity: state => state.flags.dvoSeverity,
+    detail: 'CVF − VEF1 ≥ 25%. Padrão sugestivo de aprisionamento aéreo.',
+    recommendations: [
+      'Considerar pletismografia para confirmar VR aumentado',
+      'Investigar enfisema, bronquiolite, asma grave',
+      'Tomografia de tórax conforme contexto',
+      'Otimização de broncodilatador de longa ação',
+      'Encaminhamento à pneumologia'
+    ]
+  },
+  result_dvr_supranormal: {
+    isResult: true, diagnosis: 'DVR com Fluxos Supranormais', severity: 'moderado',
+    getDetail: state => {
+      const sev = state.flags.dvrSeverity || 'leve';
+      const cuts = { grave: '≤ 50%', moderado: '51–65%', leve: '> 65%' };
+      return `Restritivo (${capitalize(sev)} — VEF1 ${cuts[sev]}) com fluxos elevados (FEF25-75%/CVF > 150% ou VEF1/CVF% > 110% do previsto).`;
+    },
+    recommendations: [
+      'Confirmar restrição com pletismografia (CPT &lt; 80%)',
+      'Investigar causas restritivas: doença intersticial, deformidade torácica, fraqueza neuromuscular, derrame, obesidade',
+      'Tomografia de tórax e laboratório direcionado',
+      'Encaminhamento à pneumologia'
+    ]
+  },
+  result_dvr_provavel: {
+    isResult: true, diagnosis: 'Distúrbio Ventilatório Restritivo (DVR) Provável',
+    getSeverity: state => state.flags.dvrSeverity || 'leve',
+    getDetail: state => {
+      const sev = state.flags.dvrSeverity || 'leve';
+      const cuts = { grave: '≤ 50%', moderado: '51–65%', leve: '> 65%' };
+      return `Padrão sugestivo de restrição (${capitalize(sev)} — VEF1 ${cuts[sev]}). FEF25-75%/CVF% > 150% ou clínica compatível.`;
+    },
+    recommendations: [
+      '<strong>Confirmar com pletismografia (CPT)</strong>',
+      'Investigar etiologia (intersticial, neuromuscular, parede torácica)',
+      'Considerar tomografia de tórax',
+      'Encaminhamento à pneumologia'
+    ]
+  },
+  result_dv_inespecifico: {
+    isResult: true, diagnosis: 'Distúrbio Ventilatório Inespecífico', severity: 'moderado',
+    getDetail: state => {
+      const sev = state.flags.dvrSeverity || 'leve';
+      const cuts = { grave: '≤ 50%', moderado: '51–65%', leve: '> 65%' };
+      return `CVF reduzida pré e pós-BD com FEF25-75%/CVF% &lt; 150% (VEF1 ${state.values.vef1_pct}%, sugestivo de gravidade ${capitalize(sev)} — ${cuts[sev]}).`;
+    },
+    recommendations: [
+      '<strong>Pletismografia obrigatória</strong> para diferenciar restritivo de obstrutivo com aprisionamento',
+      'Avaliar contexto clínico e radiológico',
+      'Considerar TCAR de tórax',
+      'Encaminhamento à pneumologia'
+    ]
+  },
+  result_dv_obstrutivo: {
+    isResult: true, diagnosis: 'Distúrbio Ventilatório Obstrutivo (com normalização da CVF pós-BD)', severity: 'moderado',
+    detail: 'CVF reduzida pré-BD que normaliza pós-BD, com FEF25-75%/CVF% &lt; 150% — padrão obstrutivo com aprisionamento de ar reversível.',
+    recommendations: [
+      'Confirmar com nova espirometria',
+      'Iniciar/ajustar terapia broncodilatadora',
+      'Investigar asma como causa principal',
+      'Acompanhamento ambulatorial'
+    ]
+  },
+};
+
+function capitalize(s){ return s ? s.charAt(0).toUpperCase()+s.slice(1) : ''; }
+function addToHistory(text){ state.history.push({ node: state.currentNodeId, text, ts: new Date() }); }
+
+const main = document.getElementById('mainContent');
+const progressFill = document.getElementById('progressFill');
+
+function progressFor(nodeId){
+  const order = [
+    'start','ratio_result','cvf_check',
+    'nao_cvfn_check','nao_fef_clinic','nao_fef_bd','nao_bd_clinic',
+    'nao_cvfr_severity','nao_cvfr_fef_check','nao_cvfr_postbd',
+    'sim_cvfn_severity','sim_cvfn_bd','sim_cvfr_difference'
+  ];
+  const node = NODES[nodeId];
+  if (node && node.isResult) return 100;
+  const idx = order.indexOf(nodeId);
+  if (idx === -1) return 0;
+  return Math.round((idx / order.length) * 95);
+}
+
+function render(nodeId){
+  const node = NODES[nodeId];
+  state.currentNodeId = nodeId;
+  progressFill.style.width = progressFor(nodeId) + '%';
+  if (node.isResult) { renderResult(nodeId); return; }
+  const title = typeof node.title === 'function' ? node.title(state) : node.title;
+  const renderHTML = node.render ? node.render(state) : '';
+  main.innerHTML = `
+    <div class="step active">
+      <div class="step-header">
+        <span class="step-tag">Etapa</span>
+        <span class="step-title">${title}</span>
+      </div>
+      <div class="step-desc">${node.description || ''}</div>
+      ${renderHTML}
+      <div class="navigation">
+        <button class="btn btn-ghost" id="restartBtn">↺ Recomeçar</button>
+        ${node.type === 'choice' ? '' : `<button class="btn btn-primary" id="nextBtn">Avançar →</button>`}
+      </div>
+    </div>
+  `;
+  document.getElementById('restartBtn').addEventListener('click', restart);
+  if (node.type === 'choice') {
+    document.querySelectorAll('.option').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const choice = btn.dataset.choice;
+        const nextNode = node.onChoice(choice);
+        if (nextNode) render(nextNode);
+      });
+    });
+  } else {
+    const nextBtn = document.getElementById('nextBtn');
+    nextBtn.addEventListener('click', () => {
+      if (node.validate) {
+        const err = node.validate(state);
+        if (err) { alert(err); return; }
+      }
+      if (node.commit) node.commit(state);
+      const next = typeof node.next === 'function' ? node.next(state) : node.next;
+      if (next) render(next);
+    });
+  }
+}
+
+function renderResult(nodeId){
+  const node = NODES[nodeId];
+  const diagnosis = typeof node.getDiagnosis === 'function' ? node.getDiagnosis(state) : node.diagnosis;
+  const severity = typeof node.getSeverity === 'function' ? node.getSeverity(state) : node.severity;
+  const detail = typeof node.getDetail === 'function' ? node.getDetail(state) : node.detail;
+  const sevLabels = { grave: 'GRAVE', moderado: 'MODERADO', leve: 'LEVE', normal: 'NORMAL' };
+  const sevClass = severity ? `severity-${severity}` : 'normal';
+  const cardClass = severity === 'normal' ? 'normal' : sevClass;
+  const recs = (node.recommendations || []).map(r => `<li>${r}</li>`).join('');
+  const v = state.values;
+  const summaryRows = [
+    ['Idade', state.patient.age + ' anos'],
+    ['Sexo', state.patient.sex || '—'],
+    ['VEF1', v.vef1_pct + '% do previsto'],
+    ['CVF', v.cvf_pct + '% do previsto'],
+    ['VEF1/CVF', v.ratio_abs.toFixed(2) + (v.ratio_pct !== null ? ` (${v.ratio_pct}% prev)` : '')],
+    ['FEF 25-75%', v.fef2575_pct !== null ? v.fef2575_pct + '%' : '—'],
+    ['FEF 25-75% / CVF', v.fef2575_cvf_pct !== null ? v.fef2575_cvf_pct + '%' : '—'],
+  ];
+  if (state.postBD.vef1_change_pct !== null) summaryRows.push(['Δ VEF1 pós-BD', state.postBD.vef1_change_pct + '%']);
+  if (state.postBD.cvf_change_pct !== null) summaryRows.push(['Δ CVF pós-BD', state.postBD.cvf_change_pct + '%']);
+  if (state.postBD.cvf_post_pct !== null) summaryRows.push(['CVF pós-BD', state.postBD.cvf_post_pct + '%']);
+  const summaryHTML = summaryRows.map(([k,val]) => `<div class="summary-row"><span>${k}</span><span>${val}</span></div>`).join('');
+  const trailHTML = state.history.map(h => `<div class="step-item"><span class="arrow">→</span>${h.text}</div>`).join('');
+  progressFill.style.width = '100%';
+  main.innerHTML = `
+    <div class="step active">
+      <div class="step-header">
+        <span class="step-tag">Diagnóstico</span>
+        <span class="step-title">Conclusão da interpretação</span>
+      </div>
+      ${state.patient.name ? `<div class="step-desc">Paciente: <strong>${state.patient.name}</strong></div>` : ''}
+      <div class="result-card ${cardClass}">
+        <div class="result-label">Diagnóstico espirométrico</div>
+        <div class="result-diagnosis">${diagnosis}</div>
+        <div class="result-detail">${detail}</div>
+        ${severity && severity !== 'normal' ? `<div class="severity-pill">${sevLabels[severity]}</div>` : ''}
+      </div>
+      <div class="recommendation">
+        <h4>Recomendações e próximos passos</h4>
+        <ul>${recs}</ul>
+      </div>
+      <div class="path-trail">
+        <h4>Caminho percorrido no fluxograma</h4>
+        ${trailHTML}
+      </div>
+      <div class="summary">
+        <h4>Resumo dos valores</h4>
+        ${summaryHTML}
+      </div>
+      <div class="actions-row">
+        <button class="btn btn-primary" id="restartBtn">↺ Nova interpretação</button>
+        <button class="btn btn-ghost" id="printBtn">🖨 Imprimir / Salvar PDF</button>
+        <button class="btn btn-ghost" id="copyBtn">📋 Copiar laudo</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('restartBtn').addEventListener('click', restart);
+  document.getElementById('printBtn').addEventListener('click', () => window.print());
+  document.getElementById('copyBtn').addEventListener('click', () => {
+    const txt = generatePlainTextReport(diagnosis, detail, node.recommendations || [], summaryRows);
+    navigator.clipboard.writeText(txt).then(() => {
+      const b = document.getElementById('copyBtn');
+      b.textContent = '✓ Copiado!';
+      setTimeout(() => b.textContent = '📋 Copiar laudo', 2000);
+    });
+  });
+}
+
+function generatePlainTextReport(diagnosis, detail, recs, summary){
+  const stripHtml = s => s.replace(/<[^>]+>/g,'');
+  let txt = 'INTERPRETAÇÃO DE ESPIROMETRIA — SBPT 2024\n=========================================\n\n';
+  if (state.patient.name) txt += `Paciente: ${state.patient.name}\n`;
+  txt += `Idade: ${state.patient.age} anos${state.patient.sex ? ' · Sexo: '+state.patient.sex : ''}\n`;
+  txt += `Data: ${new Date().toLocaleDateString('pt-BR')}\n\n`;
+  txt += 'VALORES:\n';
+  summary.forEach(([k,v]) => { txt += `  ${k}: ${v}\n`; });
+  txt += '\nCAMINHO NO FLUXOGRAMA:\n';
+  state.history.forEach(h => { txt += `  → ${h.text}\n`; });
+  txt += `\nDIAGNÓSTICO:\n  ${diagnosis}\n`;
+  txt += `\nDETALHE:\n  ${stripHtml(detail)}\n`;
+  txt += '\nRECOMENDAÇÕES:\n';
+  recs.forEach(r => { txt += `  • ${stripHtml(r)}\n`; });
+  return txt;
+}
+
+function restart(){
+  state.patient = { name:'', age:null, sex:'' };
+  state.values = { vef1_pct:null, cvf_pct:null, ratio_abs:null, ratio_pct:null, fef2575_pct:null, fef2575_cvf_pct:null, lin:null };
+  state.postBD = { vef1_change_pct:null, cvf_change_pct:null, cvf_post_pct:null };
+  state.clinical = { hasSymptoms:null, symptoms:[] };
+  state.flags = { ratioReduced:null, cvfReduced:null, branch:null };
+  state.history = [];
+  render('start');
+}
+
+render('start');
+</script>
+</body>
+</html>
